@@ -155,6 +155,20 @@ let chain_mass_spring = (ctx) => {
 	}
 }
 
+(() => {
+  let scenes = [
+    five_force_fbd,
+    fifty_circles,
+    chain_mass_spring
+  ];
+  let cur_scene = 0;
+
+  let next_scene = () => {
+    scenes[cur_scene](ctx);
+    cur_scene = (cur_scene + 1) % scenes.length;
+  }
+  setInterval(next_scene, 2000);
+})();
 
 </script>
 	</body>
