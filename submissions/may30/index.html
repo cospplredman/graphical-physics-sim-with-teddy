@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>teddy's graphical physics sim!</title>
+		<link rel="icon" href="../../favicon.svg" sizes="any" type="image/svg+xml">
+		<meta charset="UTF-8"></meta>
+	</head>
+	<body>
+<div> 
+	<input id="my_input"></input>
+</div> 
+<canvas id="my_canvas" width=400 height=400>
+your browser doesn't support canvas :/
+</canvas>
+<script>
+
+
+const ctx = my_canvas.getContext('2d')
+
+
+
+//Teddy's starting code
+ctx.strokeStyle = 'white'
+ctx.fillStyle = 'white'
+ctx.lineWidth = 2
+
+function triangle(cx, cy) {
+  ctx.beginPath()
+  ctx.moveTo(cx, cy - 10)
+  const be = cy + 5 // bottom edge
+  ctx.lineTo(cx - 8.66, be) // draw from top corner to bottom left corner
+  ctx.lineTo(cx + 8.66, be) // draw from bottom left corner to bottom right corner
+  ctx.closePath() // draw from bottom right corner to top corner
+  ctx.stroke() }
+
+function triforce(cx, cy) {
+  triangle(cx, cy - 10)
+  triangle(cx - 8.66, cy + 5)
+  triangle(cx + 8.66, cy + 5) }
+
+for (let i = 100; i < 300; i += 50) {
+  triforce(i, i) }
+
+
+//mine
+let add = (a, b) => a.map((v, i) => v + b[i]);
+let sub = (a, b) => a.map((v, i) => v - b[i]);
+let dot = (a, b) => a.map((v, i) => v * b[i]).reduce((a, b) => a + b);
+let smul = (s, a) => a.map(v => s*v);
+let r90 = ([x, y]) => [-y, x];
+let norm = (a) => smul(1/Math.sqrt(dot(a, a)), a);
+let len = (a) => dot(a, a)**0.5;
+
+
+let ctx_set_color = (ctx, color) => {
+	ctx.fillStyle = `RGB(${color.join(" ")})`;
+	ctx.strokeStyle = `RGB(${color.join(" ")})`;
+};
+
+let clear = (ctx, color = [255, 255, 255]) => {
+	ctx_set_color(ctx, color);
+	ctx.fillRect(0, 0, my_canvas.width, my_canvas.height);
+}
+
+let arrow = (ctx, p1, p2, color = [0, 0, 0], lt = 4, at = 10, al = 10) => {
+	ctx.lineWidth = lt;
+	ctx_set_color(ctx, color);
+  	ctx.beginPath()
+	ctx.moveTo(...p1);
+	ctx.lineTo(...p2);
+	ctx.stroke();
+
+	//shutup :3
+	let pvec = norm(r90(sub(p2, p1)));
+	let nvec = norm(sub(p2, p1));
+
+  	ctx.beginPath()
+	ctx.moveTo(...add(p2, smul(at/2, pvec)));
+	ctx.lineTo(...add(p2, smul(al, nvec)));
+	ctx.lineTo(...add(p2, smul(-at/2, pvec)));
+	ctx.lineTo(...add(p2, smul(at/2, pvec)));
+	ctx.closePath();
+	ctx.stroke();
+	ctx.fill();
+}
+
+let zigzag = (ctx, p1, p2, color = [0, 0, 0], lt = 4, min_dz = 20, a = 10, p = 20) => {
+	ctx_set_color(ctx, color);
+	ctx.lineWidth = lt;
+	
+	let pvec = norm(r90(sub(p2, p1)));
+	let nvec = norm(sub(p2, p1));
+
+
+	let l_offset = len(sub(p2, p1));
+	let complete_zigzags = (l_offset/p)|0
+
+	complete_zigzags += Math.min( Math.floor(((l_offset - complete_zigzags * p)/2 - min_dz)/p), 0);
+
+	let dz_len = (l_offset - complete_zigzags * p) / 2;
+
+
+	ctx.beginPath();
+	ctx.moveTo(...p1);
+	let sp = add(p1, smul(dz_len, nvec));
+	ctx.lineTo(...sp);
+
+	for(let i = 0; i < complete_zigzags; i++){
+		let cp = add(sp, smul(i*p, nvec));
+
+		ctx.lineTo(...add(cp, add(smul(p/4, nvec), smul(a, pvec))));
+		ctx.lineTo(...add(cp, smul(p/2, nvec)));
+		ctx.lineTo(...add(cp, add(smul(3*p/4, nvec), smul(-a, pvec))));
+		ctx.lineTo(...add(cp, smul(p, nvec)));
+	}
+
+	ctx.lineTo(...p2);
+	ctx.stroke();
+}
+
+let circle = (ctx, p1, r = 10, color = [0, 0, 0]) => {
+	ctx_set_color(ctx, color);
+	ctx.beginPath();
+	ctx.arc(...p1, r, 0, 2*Math.PI);
+	ctx.fill();
+	ctx.stroke();
+}
+
+
+
+let plot = (ctx, options) => {
+	console.log(options);
+
+
+	clear(ctx);
+
+	ctx.lineWidth = 2;
+	ctx_set_color(ctx, [0, 0, 0]);
+	ctx.beginPath();
+	ctx.moveTo(0, my_canvas.width/2 - options.curve(-my_canvas.width/2));
+
+	let py = options.curve(-my_canvas.width/2);
+	for(let i = 0; i < my_canvas.width; i++){
+		let val = options.curve(i-my_canvas.width/2);
+		let dydx = val - py;
+		py = val;
+
+		if(Math.abs(dydx) > my_canvas.width/4)
+			ctx.moveTo(i, my_canvas.width/2 - val);
+		else
+			ctx.lineTo(i, my_canvas.width/2 - val);
+	}
+
+	ctx.stroke();
+};
+
+
+
+
+my_input.addEventListener("input", (e) => {
+  try {
+    let func = new Function("x", "return " + my_input.value);
+
+    plot(ctx, {curve: func})
+  } catch {
+
+  }
+})
+
+plot(ctx, {curve: (x) => x});
+
+
+</script>
+	</body>
+</html>
