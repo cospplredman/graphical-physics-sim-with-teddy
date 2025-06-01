@@ -307,25 +307,25 @@ let read = str => {
 		let primary_expr = some(
 			all(number, Pop(n => Push(Lit(+n)))),
 			all(identifier, Pop(i => Push(Ref(i)))),
-			all(lp, expr, rp)
+			all(lp, wspace, expr, wspace, rp)
 		);
 
 		let mul_expr = state => some(
-			all(primary_expr, Take(x => x == "*"), mul_expr, Pop(b => Pop(_ => Pop(a => Push(MulNode(a, b)))))),
-			all(primary_expr, Take(x => x == "/"), mul_expr, Pop(b => Pop(_ => Pop(a => Push(DivNode(a, b)))))),
+			all(primary_expr, wspace, Take(x => x == "*"), wspace, mul_expr, Pop(b => Pop(_ => Pop(a => Push(MulNode(a, b)))))),
+			all(primary_expr, wspace, Take(x => x == "/"), wspace, mul_expr, Pop(b => Pop(_ => Pop(a => Push(DivNode(a, b)))))),
 			primary_expr
 		)(state);
 
 		let add_expr = state => some(
-			all(mul_expr, Take(x => x == "+"), add_expr, Pop(b => Pop(_ => Pop(a => Push(AddNode(a, b)))))),
-			all(mul_expr, Take(x => x == "-"), add_expr, Pop(b => Pop(_ => Pop(a => Push(SubNode(a, b)))))),
+			all(mul_expr, wspace, Take(x => x == "+"), wspace, add_expr, Pop(b => Pop(_ => Pop(a => Push(AddNode(a, b)))))),
+			all(mul_expr, wspace, Take(x => x == "-"), wspace, add_expr, Pop(b => Pop(_ => Pop(a => Push(SubNode(a, b)))))),
 			mul_expr
 		)(state);
 
 		return add_expr(state);
 	}
 
-	let res = all(expr, Halt)(State(str));
+	let res = all(wspace, expr, wspace, Halt)(State(str));
 
 	if(res.fail){
 		console.log(res);
