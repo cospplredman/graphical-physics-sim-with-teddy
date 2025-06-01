@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>teddy's graphical physics sim!</title>
+		<link rel="icon" href="../../favicon.svg" sizes="any" type="image/svg+xml">
+		<meta charset="UTF-8"></meta>
+	</head>
+	<body>
+<div> 
+	<input id="my_input"></input>
+	<input id="my_scatter_data"></input>
+</div> 
+<canvas id="my_canvas" width=400 height=400>
+your browser doesn't support canvas :/
+</canvas>
+<script>
+
+
+const ctx = my_canvas.getContext('2d')
+
+
+
+//Teddy's starting code
+ctx.strokeStyle = 'white'
+ctx.fillStyle = 'white'
+ctx.lineWidth = 2
+
+function triangle(cx, cy) {
+	ctx.beginPath()
+	ctx.moveTo(cx, cy - 10)
+	const be = cy + 5 // bottom edge
+	ctx.lineTo(cx - 8.66, be) // draw from top corner to bottom left corner
+	ctx.lineTo(cx + 8.66, be) // draw from bottom left corner to bottom right corner
+	ctx.closePath() // draw from bottom right corner to top corner
+	ctx.stroke() }
+
+function triforce(cx, cy) {
+	triangle(cx, cy - 10)
+	triangle(cx - 8.66, cy + 5)
+	triangle(cx + 8.66, cy + 5) }
+
+for (let i = 100; i < 300; i += 50) {
+	triforce(i, i) }
+
+
+//mine
+let add = (a, b) => a.map((v, i) => v + b[i]);
+let sub = (a, b) => a.map((v, i) => v - b[i]);
+let dot = (a, b) => a.map((v, i) => v * b[i]).reduce((a, b) => a + b);
+let smul = (s, a) => a.map(v => s*v);
+let r90 = ([x, y]) => [-y, x];
+let norm = (a) => smul(1/Math.sqrt(dot(a, a)), a);
+let len = (a) => dot(a, a)**0.5;
+
+
+let ctx_set_color = (ctx, color) => {
+	ctx.fillStyle = `RGB(${color.join(" ")})`;
+	ctx.strokeStyle = `RGB(${color.join(" ")})`;
+};
+
+let clear = (ctx, color = [255, 255, 255]) => {
+	ctx_set_color(ctx, color);
+	ctx.fillRect(0, 0, my_canvas.width, my_canvas.height);
+}
+
+let arrow = (ctx, p1, p2, color = [0, 0, 0], lt = 4, at = 10, al = 10) => {
+	ctx.lineWidth = lt;
+	ctx_set_color(ctx, color);
+	ctx.beginPath()
+	ctx.moveTo(...p1);
+	ctx.lineTo(...p2);
+	ctx.stroke();
+
+	//shutup :3
+	let pvec = norm(r90(sub(p2, p1)));
+	let nvec = norm(sub(p2, p1));
+
+	ctx.beginPath()
+	ctx.moveTo(...add(p2, smul(at/2, pvec)));
+	ctx.lineTo(...add(p2, smul(al, nvec)));
+	ctx.lineTo(...add(p2, smul(-at/2, pvec)));
+	ctx.lineTo(...add(p2, smul(at/2, pvec)));
+	ctx.closePath();
+	ctx.stroke();
+	ctx.fill();
+}
+
+let zigzag = (ctx, p1, p2, color = [0, 0, 0], lt = 4, min_dz = 20, a = 10, p = 20) => {
+	ctx_set_color(ctx, color);
+	ctx.lineWidth = lt;
+
+	let pvec = norm(r90(sub(p2, p1)));
+	let nvec = norm(sub(p2, p1));
+
+
+	let l_offset = len(sub(p2, p1));
+	let complete_zigzags = (l_offset/p)|0
+
+	complete_zigzags += Math.min( Math.floor(((l_offset - complete_zigzags * p)/2 - min_dz)/p), 0);
+
+	let dz_len = (l_offset - complete_zigzags * p) / 2;
+
+
+	ctx.beginPath();
+	ctx.moveTo(...p1);
+	let sp = add(p1, smul(dz_len, nvec));
+	ctx.lineTo(...sp);
+
+	for(let i = 0; i < complete_zigzags; i++){
+		let cp = add(sp, smul(i*p, nvec));
+
+		ctx.lineTo(...add(cp, add(smul(p/4, nvec), smul(a, pvec))));
+		ctx.lineTo(...add(cp, smul(p/2, nvec)));
+		ctx.lineTo(...add(cp, add(smul(3*p/4, nvec), smul(-a, pvec))));
+		ctx.lineTo(...add(cp, smul(p, nvec)));
+	}
+
+	ctx.lineTo(...p2);
+	ctx.stroke();
+}
+
+let circle = (ctx, p1, r = 10, color = [0, 0, 0]) => {
+	ctx_set_color(ctx, color);
+	ctx.beginPath();
+	ctx.arc(...p1, r, 0, 2*Math.PI);
+	ctx.fill();
+	ctx.stroke();
+}
+
+
+
+let plot = (ctx, options) => {
+	console.log(options);
+
+	clear(ctx);
+	
+
+
+	if(options.axis){
+		ctx.lineWidth = 1;
+		ctx_set_color(ctx, [0, 0, 0]);
+
+		ctx.beginPath();
+		ctx.moveTo(200, 0);
+		ctx.lineTo(200, 400);
+		ctx.stroke();
+
+		ctx.beginPath();
+		ctx.moveTo(0, 200);
+		ctx.lineTo(400, 200);
+		ctx.stroke();
+	}
+
+	if(options.axis_labels){
+		ctx.fillText(options.axis_labels[0], 10, 190);
+		ctx.fillText(options.axis_labels[1], 210, 10);
+	}
+
+
+	if(options.scatter){
+		for(let i = 0; i < options.scatter.length; i++){
+			circle(ctx, [options.scatter[i][0] + 200, 200 - options.scatter[i][1]], 4);
+		}
+	}
+
+	if(options.curve){
+		ctx.lineWidth = 2;
+		ctx_set_color(ctx, [0, 0, 0]);
+		ctx.beginPath();
+		ctx.moveTo(0, my_canvas.width/2 - options.curve(-my_canvas.width/2));
+
+		let py = options.curve(-my_canvas.width/2);
+		for(let i = 0; i < my_canvas.width; i++){
+			let val = options.curve(i-my_canvas.width/2);
+			let dydx = val - py;
+			py = val;
+
+			if(Math.abs(dydx) > my_canvas.width/4)
+				ctx.moveTo(i, my_canvas.width/2 - val);
+			else
+				ctx.lineTo(i, my_canvas.width/2 - val);
+		}
+	}
+
+	ctx.stroke();
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let State = (str) => ({
+	str,
+	stack: null,
+
+	ind: 0,
+	line: 0,
+
+	fail: false
+});
+
+
+let Take = fn => state => fn(state.str[state.ind])
+	? {
+		str: state.str,
+		stack: [state.str[state.ind], state.stack],
+		ind: state.ind + 1,
+		line: state.line + (state[state.ind] == "\n"),
+		fail: false
+	}
+	: {...state, fail: true};
+
+let TakeRx = rx => state => {
+	if(state.ind < state.str.length){
+		let str = state.str.slice(state.ind);
+
+		let ma = str.match(rx);
+
+		if(ma == null)
+			return {...state, fail: true};
+
+		return {
+			str: state.str,
+			stack: [ma[0], state.stack],
+			ind: state.ind + ma[0].length,
+			line: state.line + ma.map(v => v == "\n").reduce((a, b) => a + b),
+			fail: false
+		};
+	}
+
+	return {...state, fail: true};
+}
+
+let Halt = state => state.ind == state.str.length
+	? state
+	: {...state, fail: true};
+
+let Pop = fn => state => state.stack == null ? {...state, fail: true} : fn(state.stack[0]) ({...state, stack: state.stack[1]});
+let Push = val => state => ({...state, stack: [val, state.stack]});
+
+let all = (...xs) => state => {
+	for(let i = 0; i < xs.length; i++){
+		if(state.fail)
+			break;
+		state = xs[i](state);
+	}
+	return state;
+};
+
+let some = (...xs) => state => {
+	let n_state;
+	for(let i = 0; i < xs.length; i++){
+		n_state = xs[i](state);
+		if(!n_state.fail)
+			break;
+	}
+	return n_state;
+}
+
+
+
+
+let List = fn => {
+	let rec = state => some(
+		all(fn, rec, Pop(xs => Pop(x => Push([x, ...xs])))),
+		all(fn, Pop(x => Push([x])))
+	)(state);
+	return rec;
+}
+
+
+
+let number = TakeRx(/^[+-]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?/);
+let identifier = TakeRx(/^\w+/);
+let wspace = some(all(TakeRx(/^\s+/), Pop(x => state => state)), state => state);
+let lp = all(TakeRx(/^\(/), Pop(x => state => state));
+	let rp = all(TakeRx(/^\)/), Pop(x => state => state));
+
+
+let AddNode = (...param) => ({type: "add", param});
+let SubNode = (...param) => ({type: "sub", param});
+let MulNode = (...param) => ({type: "mul", param});
+let DivNode = (...param) => ({type: "div", param});
+let Ref = name => ({type: "ref", name});
+let Lit = value => ({type: "lit", value});
+
+let read = str => {
+	let expr = state => {
+		let primary_expr = some(
+			all(number, Pop(n => Push(Lit(+n)))),
+			all(identifier, Pop(i => Push(Ref(i)))),
+			all(lp, expr, rp)
+		);
+
+		let mul_expr = state => some(
+			all(primary_expr, Take(x => x == "*"), mul_expr, Pop(b => Pop(_ => Pop(a => Push(MulNode(a, b)))))),
+			all(primary_expr, Take(x => x == "/"), mul_expr, Pop(b => Pop(_ => Pop(a => Push(DivNode(a, b)))))),
+			primary_expr
+		)(state);
+
+		let add_expr = state => some(
+			all(mul_expr, Take(x => x == "+"), add_expr, Pop(b => Pop(_ => Pop(a => Push(AddNode(a, b)))))),
+			all(mul_expr, Take(x => x == "-"), add_expr, Pop(b => Pop(_ => Pop(a => Push(SubNode(a, b)))))),
+			mul_expr
+		)(state);
+
+		return add_expr(state);
+	}
+
+	let res = all(expr, Halt)(State(str));
+
+	if(res.fail){
+		console.log(res);
+		return null;
+	}
+
+	return res.stack[0];
+}
+
+
+let implement = env => ast => ({
+	"add": ({param: [a, b]}) => implement(env)(a) + implement(env)(b),
+	"sub": ({param: [a, b]}) => implement(env)(a) - implement(env)(b),
+	"mul": ({param: [a, b]}) => implement(env)(a) * implement(env)(b),
+	"div": ({param: [a, b]}) => implement(env)(a) / implement(env)(b),
+	"ref": ({name}) => env[name],
+	"lit": ({value}) => value
+}[ast.type])(ast);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let on_input = (e) => {
+	try {
+		let func = x => implement({x})(read(my_input.value));
+		let scatter = my_scatter_data.value ? JSON.parse(my_scatter_data.value) : null;
+		console.log(scatter);
+
+		plot(ctx, {curve: func, scatter, axis: true, axis_labels: ["x", "y"]});
+	} catch {
+
+	}
+};
+
+my_input.addEventListener("input", on_input);
+my_scatter_data.addEventListener("input", on_input);
+
+plot(ctx, {axis: true, axis_labels: ["x", "y"]});
+
+
+</script>
+	</body>
+</html>
