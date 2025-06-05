@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>teddy's graphical physics sim!</title>
+		<link rel="icon" href="../../favicon.svg" sizes="any" type="image/svg+xml">
+		<meta charset="UTF-8"></meta>
+	</head>
+	<body>
+<div> 
+	<input id="my_input"></input>
+</div> 
+<canvas id="my_canvas" width=400 height=400>
+your browser doesn't support canvas :/
+</canvas>
+<script src="matrix.js"></script>
+<script>
+
+
+let ctx_set_color = (ctx, color) => {
+	ctx.fillStyle = `RGB(${color.join(" ")})`;
+	ctx.strokeStyle = `RGB(${color.join(" ")})`;
+};
+
+let clear = (ctx, color = [255, 255, 255]) => {
+	ctx_set_color(ctx, color);
+	ctx.fillRect(0, 0, my_canvas.width, my_canvas.height);
+}
+
+
+
+
+
+
+
+
+
+
+
+//beautiful scene descriptor graph 🥹
+let Shape = (verts) => ({type: "shape", verts});
+let Text = (text, pos) => ({type: "text", text, pos});
+let Curve = (func, min_t, max_t, dt) => ({type: "curve", func, min_t, max_t, dt});
+let Style = (shape, dict) => ({type: "style", shape, dict});
+
+let Composite = (shapes) => ({type: "composite", shapes});
+let Transform = (shape, matrix) => ({type: "transform", shape, matrix});
+let Ref = (name, shape) => ({type: "reference", name, shape});
+
+let draw_ = (ctx, env, scene, transform = (p => p)) => ({
+	"shape": () => {
+		ctx.beginPath();
+		ctx.moveTo(...transform(scene.verts.at(-1)));
+		for(let i = 0; i < scene.verts.length; i++)
+			ctx.lineTo(...(transform(scene.verts[i])));
+		ctx.stroke();
+		ctx.fill();
+	},
+	"text": () => {
+		ctx.fillText(scene.text, ...transform(pos));
+	},
+	"curve": () => {
+		let cur = scene.min_t;
+		let func = new Function("t", "return " + scene.func);
+		ctx.moveTo(...transform(func(cur)));
+		while(cur < scene.max_t) {
+			console.log(cur, func(cur));
+			ctx.lineTo(...transform(func(cur)));
+			cur += scene.dt;
+		};
+
+		ctx.stroke();
+	},
+	"style": () => {
+		Object.entries(scene.dict).map(v => ctx[v[0]] = v[1]);
+		draw_(ctx, env, scene.shape, transform);
+	},
+
+	"composite": () => {
+		scene.shapes.map(v => draw_(ctx, env, v, transform));
+	},
+
+	"transform": () => {
+		draw_(ctx, env, scene.shape, 
+			(pos) => {
+				let mat = new Mat3(...scene.matrix);
+				let tpos = new Vec3(...pos, 1).mul(mat);
+				return transform([tpos[0], tpos[1]]);
+			});
+	},
+
+	"reference": () => {
+		draw_(ctx, env, env[scene.name], transform);
+	}
+	
+}[scene.type](scene));
+
+let collect_shapes = (scene) => ({
+	"shape": () => [],
+	"text": () => [],
+	"curve": () => [],
+	"style": () => [],
+	"composite": () => scene.shapes.map(collect_shapes).flat(),
+	"transform": () => collect_shapes(scene.shape),
+	"reference": () => scene.shape ? [[scene.name, scene.shape]] : []
+})[scene.type](scene);
+
+
+let draw = (ctx, scene) => {
+	let env = Object.fromEntries(collect_shapes(scene));	
+	console.log(env);
+	draw_(ctx, env, scene);
+}
+
+
+
+
+
+
+
+let read = JSON.parse;
+
+
+
+
+
+
+
+
+let ctx = my_canvas.getContext("2d");
+
+let on_input = (e) => {
+	clear(ctx);
+	draw(ctx, read(my_input.value));
+};
+
+my_input.addEventListener("input", on_input);
+
+
+
+</script>
+	</body>
+</html>
